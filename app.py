@@ -1,4 +1,6 @@
+import io
 import pandas as pd
+import requests
 import streamlit as st
 
 st.set_page_config(layout="wide", page_title="PMU Internal Dashboard")
@@ -10,12 +12,19 @@ st.caption("Auto-syncs live with your Google Drive Excel Master file")
 EXCEL_URL = "https://docs.google.com/spreadsheets/d/19jVwszJtSGMLHhI1nj9Fstyd6DbUC9P4/export?format=xlsx"
 
 
-# Fetch the data dynamically on load/refresh
+# Fetch the data dynamically using an in-memory stream
 @st.cache_data(ttl=300)  # Caches for 5 minutes so it stays super fast
 def load_data(sheet_name):
     try:
-        return pd.read_excel(EXCEL_URL, sheet_name=sheet_name)
+        # Download the file content securely into memory first
+        response = requests.get(EXCEL_URL)
+        response.raise_for_status()  # Check for download errors
+        excel_data = io.BytesIO(response.content)
+
+        # Read the specific sheet from the in-memory data
+        return pd.read_excel(excel_data, sheet_name=sheet_name)
     except Exception as e:
+        st.error(f"Error fetching data: {e}")
         return None
 
 
